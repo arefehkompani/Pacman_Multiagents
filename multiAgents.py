@@ -285,6 +285,114 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
+        # default values for alpha/beta pruning
+        beta = float('inf')
+        alpha = float('-inf')
+
+        self.num_agents = gameState.getNumAgents()
+        self.ghosts = []
+        for i in range(self.num_agents - 1):
+            self.ghosts.append(i + 1)
+
+        depth = 0
+        best_action = 0
+
+        # all the legal actions pacman can currently take
+        pacman_actions = gameState.getLegalActions(0)
+        for action in pacman_actions:
+            # create future state
+            pacman_future = gameState.generateSuccessor(0, action)
+            # call minimize
+            value = self.Minimize_Action(pacman_future, self.ghosts[0], depth,
+                                         alpha,
+                                         beta)
+
+            # if alpha > beta -> prune, just return current action
+            if alpha > beta:
+                return action
+
+            # otherwise acts like a max node, reassign alpha
+            if value > alpha:
+                alpha = value
+                best_action = action
+
+        return best_action
+
+    def Maximize_Action(self, gameState, depth, alpha, beta):
+        """
+            Max node for alpha beta pruning
+        """
+        pacman_actions = gameState.getLegalActions(0)
+
+        # see if we have reached the depth limit, return value of state
+        if depth == self.depth:
+            return self.evaluationFunction(gameState)
+
+        # if no actions left return currents tate value
+        if not pacman_actions:
+            return self.evaluationFunction(gameState)
+
+        value = float('-inf')
+        # for every action call min node on it, pass alpha, beta values
+        for action in pacman_actions:
+            pacman_future = gameState.generateSuccessor(0, action)
+            value = max(
+                self.Minimize_Action(pacman_future, self.ghosts[0], depth,
+                                     alpha,
+                                     beta), value)
+
+            # max node need to choose the largest value for alpha
+            alpha = max(alpha, value)
+
+            # if alpha > beta -> prune
+            if alpha > beta:
+                return value
+
+        # return the value not alpha, because return value is only alpha, if
+        # alpha was changed in this tree and returned as the value. Alpha
+        # may also be a value carried over from another subtree.
+
+        return value
+
+    def Minimize_Action(self, gameState, ghost_ID, depth, alpha, beta):
+
+        # gets the legal actions for ghost
+        ghost_actions = gameState.getLegalActions(ghost_ID)
+
+        if depth == self.depth:
+            return self.evaluationFunction(gameState)
+
+        if not ghost_actions:
+            return self.evaluationFunction(gameState)
+
+        value = float('inf')
+        if ghost_ID < gameState.getNumAgents() - 1:
+            for action in ghost_actions:
+                # future caused by ghost taking its action
+                ghost_future = gameState.generateSuccessor(ghost_ID, action)
+                # every action of ghost X needs to be evaluated by ghost X+1
+                # until run out of ghosts
+                value = min(
+                    self.Minimize_Action(ghost_future, ghost_ID + 1, depth,
+                                         alpha, beta), value)
+
+                if value < alpha:
+                    return value
+
+                beta = min(beta, value)
+        else:
+            for action in ghost_actions:
+                ghost_future = gameState.generateSuccessor(ghost_ID, action)
+                value = min(
+                    self.Maximize_Action(ghost_future, depth + 1, alpha, beta),
+                    value)
+
+                if value < alpha:
+                    return value
+
+                beta = min(beta, value)
+
+        return value
         util.raiseNotDefined()
 
 
