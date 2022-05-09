@@ -315,7 +315,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             alpha = max(alpha, tempVal)
           return (val, bestAction)
 
-        #depending on whose move and depth, either maximise or minimise
+        #depending on whose move and depth, either maximize or minimize
         def abPruning(gameState, agent, d, alpha, beta):
           #each player gets on move for each depth
           if agent >= gameState.getNumAgents():
@@ -330,7 +330,6 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           else:
             return (minimize_action(gameState, agent, d, alpha, beta), '')
 
-        #first depth = 1, first agent = pacman (zero)
         d = 1
         firstAgent = 0
         value, action = abPruning(gameState, firstAgent, d, float('-inf'), float('inf'))
@@ -377,7 +376,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 
           return (val, bestAction)
 
-        #depending on whose move and depth, either maximise or minimise
+        #depending on whose move and depth, either maximize or minimize
         def expectimaxDecision(gameState, agent, d):
           #each player gets on move for each depth
           if agent >= gameState.getNumAgents():
@@ -392,7 +391,6 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           else:
             return (expectiValue(gameState, agent, d), '')
 
-        #first depth = 1, first agent = pacman (zero)
         d = 1
         firstAgent = 0
         value, action = expectimaxDecision(gameState, firstAgent, d)
