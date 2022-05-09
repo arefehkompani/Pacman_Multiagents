@@ -206,7 +206,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         return best_action
 
-    def Maximize_Action(self, gameState, depth):
+    def maximize_action(self, gameState, depth):
         """
             Apply max node implementation
         """
@@ -265,7 +265,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             # last ghost need to call maximize afterwards
             for action in ghost_actions:
                 ghost_future = gameState.generateSuccessor(ghost_ID, action)
-                values.append(self.Maximize_Action(ghost_future, depth + 1))
+                values.append(self.maximize_action(ghost_future, depth + 1))
 
         # make sure not empty list we are calling min on
         if not values:
@@ -285,115 +285,56 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        # default values for alpha/beta pruning
-        beta = float('inf')
-        alpha = float('-inf')
+        def minimize_action(gameState, ghost, d, alpha, beta):
+          val = float('inf')
 
-        self.num_agents = gameState.getNumAgents()
-        self.ghosts = []
-        for i in range(self.num_agents - 1):
-            self.ghosts.append(i + 1)
+          for action in gameState.getLegalActions(ghost):
+            tempState =gameState.generateSuccessor(ghost, action)
+            tempVal, action = abPruning(tempState, ghost +1, d, alpha, beta)
+            if tempVal < val:
+              val = tempVal
+            if val < alpha:
+                return val
+            beta = min(beta, tempVal)
 
-        depth = 0
-        best_action = 0
+          return val
 
-        # all the legal actions pacman can currently take
-        pacman_actions = gameState.getLegalActions(0)
-        for action in pacman_actions:
-            # create future state
-            pacman_future = gameState.generateSuccessor(0, action)
-            # call minimize
-            value = self.minimize_action(pacman_future, self.ghosts[0], depth,
-                                         alpha,
-                                         beta)
+        def maximize_action(gameState, d, alpha, beta):
+          val = float('-inf')
+          #default best move is stop
+          bestAction = 'Stop'
 
-            # if alpha > beta -> prune, just return current action
-            if alpha > beta:
-                return action
+          for action in gameState.getLegalActions(0):
+            tempState =gameState.generateSuccessor(0, action)
+            tempVal, tempAction = abPruning(tempState, 1, d, alpha, beta)
+            if tempVal > val:
+              val = tempVal
+              bestAction = action
+            if val > beta:
+                return (val, action)
+            alpha = max(alpha, tempVal)
+          return (val, bestAction)
 
-            # otherwise acts like a max node, reassign alpha
-            if value > alpha:
-                alpha = value
-                best_action = action
+        #depending on whose move and depth, either maximise or minimise
+        def abPruning(gameState, agent, d, alpha, beta):
+          #each player gets on move for each depth
+          if agent >= gameState.getNumAgents():
+            agent = 0
+            d += 1
+          #return eval fn when game finished or depth reached
+          if (gameState.isWin() or gameState.isLose() or self.depth < d):
+            return (self.evaluationFunction(gameState), '')
+          #pacman's move gets max value, the ghosts get min value          
+          if 0 == agent:
+            return maximize_action(gameState, d, alpha, beta)
+          else:
+            return (minimize_action(gameState, agent, d, alpha, beta), '')
 
-        return best_action
-
-    def Maximize_Action(self, gameState, depth, alpha, beta):
-        """
-            Max node for alpha beta pruning
-        """
-        pacman_actions = gameState.getLegalActions(0)
-
-        # see if we have reached the depth limit, return value of state
-        if depth == self.depth:
-            return self.evaluationFunction(gameState)
-
-        # if no actions left return currents tate value
-        if not pacman_actions:
-            return self.evaluationFunction(gameState)
-
-        value = float('-inf')
-        # for every action call min node on it, pass alpha, beta values
-        for action in pacman_actions:
-            pacman_future = gameState.generateSuccessor(0, action)
-            value = max(
-                self.minimize_action(pacman_future, self.ghosts[0], depth,
-                                     alpha,
-                                     beta), value)
-
-            # max node need to choose the largest value for alpha
-            alpha = max(alpha, value)
-
-            # if alpha > beta -> prune
-            if alpha > beta:
-                return value
-
-        # return the value not alpha, because return value is only alpha, if
-        # alpha was changed in this tree and returned as the value. Alpha
-        # may also be a value carried over from another subtree.
-
-        return value
-
-    def minimize_action(self, gameState, ghost_ID, depth, alpha, beta):
-
-        # gets the legal actions for ghost
-        ghost_actions = gameState.getLegalActions(ghost_ID)
-
-        if depth == self.depth:
-            return self.evaluationFunction(gameState)
-
-        if not ghost_actions:
-            return self.evaluationFunction(gameState)
-
-        value = float('inf')
-        if ghost_ID < gameState.getNumAgents() - 1:
-            for action in ghost_actions:
-                # future caused by ghost taking its action
-                ghost_future = gameState.generateSuccessor(ghost_ID, action)
-                # every action of ghost X needs to be evaluated by ghost X+1
-                # until run out of ghosts
-                value = min(
-                    self.minimize_action(ghost_future, ghost_ID + 1, depth,
-                                         alpha, beta), value)
-
-                if value < alpha:
-                    return value
-
-                beta = min(beta, value)
-        else:
-            for action in ghost_actions:
-                ghost_future = gameState.generateSuccessor(ghost_ID, action)
-                value = min(
-                    self.Maximize_Action(ghost_future, depth + 1, alpha, beta),
-                    value)
-
-                if value < alpha:
-                    return value
-
-                beta = min(beta, value)
-
-        return value
-        util.raiseNotDefined()
+        #first depth = 1, first agent = pacman (zero)
+        d = 1
+        firstAgent = 0
+        value, action = abPruning(gameState, firstAgent, d, float('-inf'), float('inf'))
+        return action
 
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
@@ -467,6 +408,30 @@ def betterEvaluationFunction(currentGameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
+    posPacman = currentGameState.getPacmanPosition() #pacman position
+    stateFantasmas = currentGameState.getGhostStates() #State in which the ghosts are found
+    posFood = currentGameState.getFood().asList() #List of the position of each of the foods
+    score = currentGameState.getScore() #Score
+    numFood = currentGameState.getNumFood() #Number of foods left
+    
+    disFood = [manhattanDistance(Food, posPacman) for Food in posFood] #Manhattan list between each food and the position of the pacman
+
+    #It checks if there are food items on the map and considers the shortest distance of the food items as their weight
+
+    if len(disFood):
+        minDisFood = min(disFood)
+    else:
+        minDisFood = 0
+
+    #The position of each of the ghosts is reviewed and a weight is given to them at the moment in which the pacman is allowed to eat them
+    scoreGhost = 0
+
+    for ghost in stateFantasmas:
+        disGhost = manhattanDistance(ghost.getPosition(), posPacman)
+        if ghost.scaredTimer > disGhost:
+            scoreGhost = scoreGhost - disGhost + 50
+    
+    return score - minDisFood - numFood + scoreGhost
     util.raiseNotDefined()
 
 
